@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.nbaltas.nickos.App
+import com.nbaltas.nickos.node.AdminPolicy
 import com.nbaltas.nickos.node.LocalVideos
 import com.nbaltas.nickos.node.NodeService
 import com.nbaltas.nickos.node.parentName
@@ -72,6 +73,17 @@ fun NodeApp(onKidMode: () -> Unit, onParentMode: () -> Unit) {
     // Tablet cameras: the grown-up menu offers "Allow camera" until the permission is there.
     var cameraOk by remember(screen) { mutableStateOf(rt.device.hasCameraPermission()) }
     val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { cameraOk = it || rt.device.hasCameraPermission() }
+
+    // Device Admin (screen off): asked for here, in the grown-up menu, never in front of the kid.
+    var adminOk by remember(screen) { mutableStateOf(rt.device.canLockScreen()) }
+    val askAdmin = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { adminOk = rt.device.canLockScreen() }
+    fun requestAdmin() { rt.device.adminRequestIntent()?.let { try { askAdmin.launch(it) } catch (_: Exception) {} } }
+    LaunchedEffect(screen) {
+        if (AdminPolicy.shouldPromptHere(true, screen == NodeScreen.MENU, rt.device.isDeviceOwner, rt.device.canLockScreen(), rt.device.adminAsked)) {
+            rt.device.adminAsked = true
+            requestAdmin()
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(C.bg)) {
         when (screen) {
@@ -125,6 +137,7 @@ fun NodeApp(onKidMode: () -> Unit, onParentMode: () -> Unit) {
                     store.resetAll()
                 }
             },
+            onAllowScreenOff = if (adminOk) null else ({ requestAdmin() }),
             onAllowCamera = if (cameraOk) null else ({ askCamera.launch(android.Manifest.permission.CAMERA) }),
         )
 

@@ -565,6 +565,7 @@ private fun DeviceTab(v: NodeView, onUnlinked: () -> Unit) {
             { mod ->
                 DeviceCard(mod, Lucide.Settings, "Tablet", trailing = {
                     if (st != null && !st.owner) Chip(height = 30.dp, bg = C.dangerLine) { Text("Kid lock off", style = body(13.sp, 700), color = C.danger) }
+                    else if (st != null && !st.admin) Chip(height = 30.dp, bg = C.dangerLine) { Text("Screen off needs permission", style = body(13.sp, 700), color = C.danger) }
                 }) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         StartButton(Lucide.RefreshCw, "Restart Jellyfin") { m.restartJellyfin(v.node.id) }

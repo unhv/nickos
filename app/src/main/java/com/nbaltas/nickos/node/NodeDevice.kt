@@ -49,6 +49,19 @@ class NodeDevice(private val ctx: Context) {
     val isDeviceOwner get() = dpm.isDeviceOwnerApp(ctx.packageName)
     private val isAdmin get() = dpm.isAdminActive(admin)
 
+    /** True when the screen can be switched off: Device Owner or an active Device Admin. Sent to the Master in the status. */
+    fun canLockScreen() = AdminPolicy.canLockScreen(isDeviceOwner, isAdmin)
+
+    /** Set once the parent has been shown the Device Admin screen this run, so it is not repeated at every menu. */
+    @Volatile var adminAsked = false
+
+    /** The system "Activate device admin app" screen for NickOS, or null when it is not needed. */
+    fun adminRequestIntent(): Intent? =
+        if (!AdminPolicy.needsAdmin(isDeviceOwner, isAdmin)) null
+        else Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+            .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin)
+            .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, AdminPolicy.EXPLANATION)
+
     // ---- battery / screen ----
     fun battery(): Pair<Int, Boolean> {
         val i = ctx.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
@@ -68,7 +81,8 @@ class NodeDevice(private val ctx: Context) {
     val screenOn get() = power.isInteractive
 
     fun screenOff() {
-        if (isAdmin) try { dpm.lockNow() } catch (e: Exception) { Log.w(TAG, "lockNow", e) }
+        if (canLockScreen()) try { dpm.lockNow() } catch (e: Exception) { Log.w(TAG, "lockNow", e) }
+        else Log.w(TAG, "screen off ignored: Device Admin is not active (grown-up menu, Allow screen off)")
     }
 
     @Suppress("DEPRECATION")
